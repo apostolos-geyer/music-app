@@ -99,7 +99,8 @@
         extraFiles: data.extraFiles.map(({ title, meta }) => ({ title, meta })),
       })
     ) {
-      await goto(`/song/${uuid}`);
+      console.log("success");
+      await goto(`/songs/${uuid}`);
     } else {
       throw new Error("FUCK");
     }

@@ -4,7 +4,8 @@ import type {
   RequestSubmitSong,
 } from "$lib/upload";
 import { S3Writer as s3 } from "$lib/server/S3";
-import { db, transaction } from "$lib/server/DB";
+import { db } from "$lib/server/db";
+import { songs } from "./db/schema";
 
 const basePrefix = "music-test";
 const expiry = 60 * 2;
@@ -49,24 +50,16 @@ export const submitSongToDB = async ({
   meta,
   extraFiles,
 }: RequestSubmitSong) => {
-  const query = {
-    sql: `INSERT INTO songs (uuid, title, meta, extra_files)
-          VALUES (:uuid, :title, :meta, :extra_files)`,
-    args: {
-      uuid: uuid,
-      title: title,
-      meta: meta ?? null,
-      extra_files: JSON.stringify(extraFiles), // JSON needs to be stringified
-    },
-  };
-  const [_, err]: [void, Error | undefined] = await transaction(
-    "write",
-    async (db) => {
-      await db.execute(query);
-    },
-  );
-  if (err) {
-    console.error("an error occurred submitting the song", err);
-    return err;
+  try {
+    return await db.transaction(
+      async (tx) =>
+        await tx
+          .insert(songs)
+          .values({ uuid, title, meta, extraFiles })
+          .returning(),
+    );
+  } catch (error) {
+    console.error(`error ocurred on submission of song`, error);
+    throw error;
   }
 };

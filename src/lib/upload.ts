@@ -100,7 +100,6 @@ export const submitSongToDB = async (
     body: JSON.stringify(data),
   });
   console.log(response);
-  console.log(await response.json());
   const status = response.status;
   return status === 201;
 };

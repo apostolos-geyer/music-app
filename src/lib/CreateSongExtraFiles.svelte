@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { type BaseUpload } from "$lib";
+  import { type FileUpload } from "$lib/upload";
 
   interface Props {
-    fileUploads?: BaseUpload[];
+    fileUploads?: FileUpload[];
   }
 
-  let { fileUploads = $bindable([]) }: Props = $props();
+  let { fileUploads = $bindable<FileUpload[]>([]) }: Props = $props();
 
   const touch = () =>
     fileUploads.push({ title: "", file: undefined, meta: "" });

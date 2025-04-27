@@ -1,10 +1,17 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-
-  import { type BaseUpload } from "$lib";
-  import { generateGradient } from "$lib/gradient";
+  import type { PageProps } from "./$types";
+  import { goto } from "$app/navigation";
+  import {
+    type FileUpload,
+    generatePresignedURLs,
+    uploadFiles,
+    submitSongToDB,
+  } from "$lib/upload";
   import CreateSongForm from "$lib/CreateSongForm.svelte";
   import CreateSongPreview from "$lib/CreateSongPreview.svelte";
+
+  let { data }: PageProps = $props();
+  const generatedCoverUrl = data.gradientDataUrl;
 
   const didProvideFiles = (maybeFiles: FileList | undefined) =>
     maybeFiles !== undefined && maybeFiles.length >= 1;
@@ -15,13 +22,8 @@
   let meta: string = $state("");
   let audioFileList: FileList | undefined = $state();
   let coverFileList: FileList | undefined = $state();
-  let generatedCoverUrl: string = $state("");
-  let extraFileUploads: BaseUpload[] = $state([]);
+  let extraFileUploads: FileUpload[] = $state([]);
   let showPreview = $state(false);
-
-  // we need to wrap this in an onMount because document isn't available
-  // if it runs on server
-  onMount(() => (generatedCoverUrl = generateGradient()));
 
   const didProvideAudioFile = $derived(didProvideFiles(audioFileList));
   const audioFile = $derived(
@@ -50,6 +52,58 @@
       file: didProvideFiles(file) ? firstFile(file as FileList) : undefined,
     })),
   );
+
+  const collectData = async () => ({
+    title,
+    meta,
+    extraFiles,
+    audio: audioFile,
+    cover:
+      coverFile !== undefined
+        ? coverFile
+        : await (await fetch(generatedCoverUrl)).blob(),
+  });
+
+  const onsubmit = async (
+    event: SubmitEvent & { currentTarget: HTMLFormElement },
+  ) => {
+    event.preventDefault();
+    const uuid = crypto.randomUUID();
+    const data = await collectData();
+
+    const urls = await generatePresignedURLs({
+      prefix: uuid,
+      audioFileType: data.audio!.type,
+      coverFileType: data.cover.type,
+      extraFileTypes: data.extraFiles.map(({ file }) => file!.type),
+    });
+    const uploadResults = await uploadFiles({
+      urls,
+      files: {
+        audio: data.audio!,
+        cover: data.cover,
+        extraFiles: data.extraFiles.map(({ file }) => file!),
+      },
+    });
+    uploadResults.forEach((response) => {
+      if (response.status !== 200) {
+        throw new Error("FUCK");
+      }
+    });
+
+    if (
+      await submitSongToDB({
+        uuid,
+        title: data.title,
+        meta: data.meta,
+        extraFiles: data.extraFiles.map(({ title, meta }) => ({ title, meta })),
+      })
+    ) {
+      await goto(`/song/${uuid}`);
+    } else {
+      throw new Error("FUCK");
+    }
+  };
 </script>
 
 {#snippet preview()}
@@ -68,6 +122,7 @@
       bind:coverFileList
       bind:extraFileUploads
       bind:showPreview
+      {onsubmit}
     />
   </div>
 

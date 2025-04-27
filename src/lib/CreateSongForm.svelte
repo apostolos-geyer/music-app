@@ -1,5 +1,9 @@
 <script lang="ts">
+  import type { EventHandler } from "svelte/elements";
   import CreateSongExtraFiles from "./CreateSongExtraFiles.svelte";
+  import SafeFileInput from "./SafeFileInput.svelte";
+  import type { FileUpload } from "./upload";
+
   let {
     title = $bindable(""),
     meta = $bindable(""),
@@ -7,10 +11,19 @@
     coverFileList = $bindable(),
     extraFileUploads = $bindable([]),
     showPreview = $bindable(false),
+    onsubmit,
+  }: {
+    title?: string;
+    meta?: string;
+    audioFileList?: FileList;
+    coverFileList?: FileList;
+    extraFileUploads?: FileUpload[];
+    showPreview?: boolean;
+    onsubmit: EventHandler<SubmitEvent, HTMLFormElement>;
   } = $props();
 </script>
 
-<form class="flex flex-col flex-1 space-y-6">
+<form class="flex flex-col flex-1 space-y-6" {onsubmit}>
   <!-- Vertical layout: all fields stack top-down -->
   <div>
     <label class="block text-sm font-medium mb-1" for="title">Title</label>
@@ -37,9 +50,8 @@
 
   <div>
     <label class="block text-sm font-medium mb-1" for="audio">Audio</label>
-    <input
+    <SafeFileInput
       class="w-full border border-gray-300 rounded px-3 py-2"
-      type="file"
       accept="audio/*"
       name="audio"
       bind:files={audioFileList}
@@ -51,9 +63,8 @@
     <label class="block text-sm font-medium mb-1" for="coverImage">
       Cover Image (optional)
     </label>
-    <input
+    <SafeFileInput
       class="w-full border border-gray-300 rounded px-3 py-2"
-      type="file"
       accept="image/*"
       name="coverImage"
       bind:files={coverFileList}
